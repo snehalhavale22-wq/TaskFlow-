@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>TaskFlow – To-Do Manager</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+  /* ---------- Design tokens ---------- */
+  :root {
+    --bg: #EFEBFF;
+    --dot: rgba(29, 26, 59, 0.10);
+    --surface: #FFFFFF;
+    --surface-done: #E4DEFA;
+    --input: #F6F4FF;
+    --track: #E4DEFA;
+    --ink: #1D1A3B;
+    --ink-soft: #5C5880;
+    --line: #1D1A3B;
+    --line-soft: #A39DCB;
+    --shadow: #1D1A3B;
+    --accent: #6A45FF;
+    --accent-ink: #FFFFFF;
+    --lime: #C9F26B;
+    --on-lime: #1D1A3B;
+    --pink: #FF5FA2;
+    --tile-total: #E4DEFF;
+    --tile-todo: #FFD3E6;
+    --tile-done: #DDF7A0;
+    --danger: #B5174D;
+    --danger-bg: #FFE1EE;
+    --focus: #6A45FF;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14102B;
+      --dot: rgba(241, 238, 255, 0.07);
+      --surface: #211B44;
+      --surface-done: #1A1536;
+      --input: #17122F;
+      --track: #14102B;
+      --ink: #F1EEFF;
+      --ink-soft: #A9A3D1;
+      --line: #7D70D6;
+      --line-soft: #4A4085;
+      --shadow: #0A0719;
+      --accent: #A896FF;
+      --accent-ink: #14102B;
+      --tile-total: #2D2660;
+      --tile-todo: #4B2148;
+      --tile-done: #2F3F17;
+      --danger: #FF8AB8;
+      --danger-bg: #4B2148;
+      --focus: #A896FF;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14102B;
+    --dot: rgba(241, 238, 255, 0.07);
+    --surface: #211B44;
+    --surface-done: #1A1536;
+    --input: #17122F;
+    --track: #14102B;
+    --ink: #F1EEFF;
+    --ink-soft: #A9A3D1;
+    --line: #7D70D6;
+    --line-soft: #4A4085;
+    --shadow: #0A0719;
+    --accent: #A896FF;
+    --accent-ink: #14102B;
+    --tile-total: #2D2660;
+    --tile-todo: #4B2148;
+    --tile-done: #2F3F17;
+    --danger: #FF8AB8;
+    --danger-bg: #4B2148;
+    --focus: #A896FF;
+  }
+
+  /* ---------- Base ---------- */
+  :root {
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  *, *::before, *::after { box-sizing: inherit; }
+  html {
+    height: 100%;
+    scroll-padding-top: env(safe-area-inset-top, 0px);
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    margin: 0;
+    min-height: 100%;
+    background-color: var(--bg);
+    background-image: radial-gradient(var(--dot) 1.2px, transparent 1.3px);
+    background-size: 22px 22px;
+    color: var(--ink);
+    font-family: 'Figtree', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    font-size: 1rem;
+    line-height: 1.5;
+  }
+  [hidden] { display: none !important; }
+  button, input { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+    overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+  }
+  .icon {
+    width: 20px; height: 20px; flex: none;
+    fill: none; stroke: currentColor; stroke-width: 2.4;
+    stroke-linecap: round; stroke-linejoin: round;
+  }
+
+  /* ---------- Layout ---------- */
+  .app {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 20px max(16px, env(safe-area-inset-right)) 56px max(16px, env(safe-area-inset-left));
+  }
+  .top {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; margin-bottom: 20px;
+  }
+  .brand-wrap { display: flex; align-items: center; gap: 10px; }
+  .logo {
+    width: 38px; height: 38px; border-radius: 12px;
+    background: var(--accent);
+    border: 2px solid var(--line);
+    box-shadow: 3px 3px 0 var(--shadow);
+    display: grid; place-items: center;
+  }
+  .logo svg {
+    width: 22px; height: 22px; fill: none; stroke: var(--lime);
+    stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round;
+  }
+  .brand {
+    margin: 0;
+    font-family: 'Bricolage Grotesque', 'Trebuchet MS', system-ui, sans-serif;
+    font-weight: 800; font-size: 1.75rem; line-height: 1; letter-spacing: -0.02em;
+  }
+  .date {
+    border: 2px solid var(--line); border-radius: 999px;
+    padding: 6px 14px; background: var(--surface);
+    font-size: 0.875rem; font-weight: 600; white-space: nowrap;
+  }
+  .layout { display: grid; gap: 20px; }
+  .main { display: grid; gap: 22px; align-content: start; min-width: 0; }
+  @media (min-width: 860px) {
+    .layout { grid-template-columns: 300px 1fr; gap: 28px; align-items: start; }
+    .side { position: sticky; top: 20px; }
+  }
+
+  .card {
+    background: var(--surface);
+    border: 2px solid var(--line);
+    border-radius: 22px;
+    box-shadow: 5px 5px 0 var(--shadow);
+    padding: 18px;
+  }
+
+  /* ---------- Summary ---------- */
+  .headline {
+    margin: 0 0 14px;
+    font-family: 'Bricolage Grotesque', 'Trebuchet MS', system-ui, sans-serif;
+    font-weight: 800; font-size: 1.5rem; line-height: 1.15; letter-spacing: -0.01em;
+  }
+  .progress-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 0.875rem; font-weight: 600; margin-bottom: 6px;
+  }
+  .bar {
+    height: 16px; border-radius: 999px; overflow: hidden;
+    background: var(--track); border: 2px solid var(--line);
+  }
+  .bar > span {
+    display: block; height: 100%; width: 0%;
+    background: var(--lime);
+    transition: width 0.45s cubic-bezier(0.3, 0.9, 0.3, 1);
+  }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 16px; }
+  .stat {
+    border: 2px solid var(--line); border-radius: 14px;
+    padding: 8px 6px; text-align: center;
+  }
+  .stat.total { background: var(--tile-total); }
+  .stat.todo { background: var(--tile-todo); }
+  .stat.done { background: var(--tile-done); }
+  .stat b {
+    display: block;
+    font-family: 'Bricolage Grotesque', 'Trebuchet MS', system-ui, sans-serif;
+    font-size: 1.6rem; font-weight: 800; line-height: 1.1;
+  }
+  .stat span { font-size: 0.8125rem; font-weight: 600; }
+
+  /* ---------- Add task ---------- */
+  .add { display: grid; gap: 12px; }
+  .add input[type="text"] {
+    width: 100%; min-height: 52px; padding: 12px 16px;
+    background: var(--input); color: var(--ink);
+    border: 2px solid var(--line); border-radius: 14px;
+    font-size: 1rem; /* 16px keeps iOS from zooming */
+  }
+  .add input::placeholder { color: var(--ink-soft); opacity: 1; }
+  .add input[aria-invalid="true"] { border-color: var(--pink); }
+  .btn-add {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    min-height: 52px; padding: 0 22px;
+    background: var(--accent); color: var(--accent-ink);
+    border: 2px solid var(--line); border-radius: 14px;
+    box-shadow: 3px 3px 0 var(--shadow);
+    font-weight: 700; font-size: 1.0625rem;
+    transition: transform 0.12s, box-shadow 0.12s;
+  }
+  .btn-add .icon { stroke-width: 3; }
+  .btn-add:active { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--shadow); }
+  @media (hover: hover) {
+    .btn-add:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--shadow); }
+    .btn-add:active { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--shadow); }
+  }
+  .hint { margin: 0; font-size: 0.875rem; font-weight: 600; color: var(--danger); }
+  @media (min-width: 560px) {
+    .add { grid-template-columns: 1fr auto; }
+    .hint { grid-column: 1 / -1; }
+  }
+  .add.shake { animation: shake 0.35s; }
+  @keyframes shake {
+    20% { transform: translateX(-7px); }
+    40% { transform: translateX(6px); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(3px); }
+  }
+
+  /* ---------- Groups ---------- */
+  .group-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .group-head h2 {
+    margin: 0;
+    font-family: 'Bricolage Grotesque', 'Trebuchet MS', system-ui, sans-serif;
+    font-weight: 800; font-size: 1.25rem; letter-spacing: -0.01em;
+  }
+  .count {
+    min-width: 26px; height: 26px; padding: 0 8px; border-radius: 999px;
+    display: inline-grid; place-items: center;
+    background: var(--accent); color: var(--accent-ink);
+    font-size: 0.8125rem; font-weight: 700;
+  }
+  .count.done { background: var(--lime); color: var(--on-lime); }
+  .btn-clear {
+    margin-left: auto; min-height: 40px; padding: 0 12px;
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--surface); border: 2px solid var(--line); border-radius: 12px;
+    font-size: 0.875rem; font-weight: 600;
+    transition: background 0.15s, color 0.15s;
+  }
+  .btn-clear .icon { width: 18px; height: 18px; }
+  .btn-clear:hover { background: var(--danger-bg); color: var(--danger); }
+
+  .tasks { list-style: none; margin: 0; padding: 0 6px 6px 0; display: grid; gap: 12px; }
+  .group + .group { margin-top: 26px; }
+
+  /* ---------- Task card ---------- */
+  .task {
+    display: flex; align-items: center; gap: 2px;
+    background: var(--surface);
+    border: 2px solid var(--line); border-radius: 16px;
+    box-shadow: 4px 4px 0 var(--shadow);
+    padding: 6px 6px 6px 4px;
+    transition: transform 0.15s, box-shadow 0.15s, background 0.2s, border-color 0.2s;
+  }
+  @media (hover: hover) {
+    .task:not(.done):hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--shadow); }
+  }
+  /* completed cards look pressed flat into the page */
+  .task.done {
+    background: var(--surface-done);
+    border-color: var(--line-soft);
+    box-shadow: 0 0 0 var(--shadow);
+    transform: translate(4px, 4px);
+  }
+  .task .label {
+    flex: 1; min-width: 0; padding: 10px 8px 10px 4px;
+    font-size: 1.0625rem; font-weight: 500; line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+  .task.done .label {
+    text-decoration: line-through; text-decoration-thickness: 2px;
+    color: var(--ink-soft);
+  }
+
+  .check { position: relative; flex: none; width: 44px; height: 44px; display: grid; place-items: center; cursor: pointer; }
+  .check input {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    margin: 0; opacity: 0; cursor: pointer;
+  }
+  .box {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 2px solid var(--line); background: var(--surface);
+    display: grid; place-items: center;
+    transition: background 0.15s, transform 0.15s, border-color 0.15s;
+  }
+  .box svg {
+    width: 16px; height: 16px; fill: none; stroke: var(--on-lime);
+    stroke-width: 3.6; stroke-linecap: round; stroke-linejoin: round;
+    stroke-dasharray: 24; stroke-dashoffset: 24;
+    transition: stroke-dashoffset 0.25s ease 0.05s;
+  }
+  @media (hover: hover) {
+    .check:hover .box { border-color: var(--accent); transform: scale(1.08); }
+  }
+  .check input:checked + .box { background: var(--lime); border-color: var(--line); animation: pop 0.32s; }
+  .check input:checked + .box svg { stroke-dashoffset: 0; }
+  .check input:focus-visible + .box { outline: 3px solid var(--focus); outline-offset: 3px; }
+  @keyframes pop { 40% { transform: scale(1.25); } }
+
+  .del {
+    flex: none; width: 44px; height: 44px; border: 0; border-radius: 12px;
+    background: transparent; color: var(--ink-soft);
+    display: grid; place-items: center;
+    transition: background 0.15s, color 0.15s;
+  }
+  .del:hover { background: var(--danger-bg); color: var(--danger); }
+
+  .task.enter { animation: enter 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
+  .task.settle { animation: settle 0.3s ease; }
+  .task.leaving { animation: leave 0.22s ease forwards; pointer-events: none; }
+  @keyframes enter { from { opacity: 0; transform: translateY(-10px) scale(0.96); } }
+  @keyframes settle { from { transform: translate(4px, 4px) scale(0.96); opacity: 0.6; } }
+  @keyframes leave { to { opacity: 0; transform: translateX(28px) scale(0.95); } }
+
+  /* ---------- Empty + notes ---------- */
+  .empty {
+    border: 2px dashed var(--line-soft); border-radius: 22px;
+    padding: 32px 20px; text-align: center;
+  }
+  .empty svg { width: 112px; height: 112px; margin-bottom: 8px; }
+  .empty svg .fill-surface { fill: var(--surface); }
+  .empty svg .fill-accent { fill: var(--accent); }
+  .empty svg .fill-lime { fill: var(--lime); }
+  .empty svg .fill-pink { fill: var(--pink); }
+  .empty svg .stroke-line { stroke: var(--line); }
+  .empty p {
+    margin: 0 auto; max-width: 22ch;
+    font-family: 'Bricolage Grotesque', 'Trebuchet MS', system-ui, sans-serif;
+    font-weight: 700; font-size: 1.375rem; line-height: 1.25;
+  }
+  .note {
+    margin: 0; padding: 18px; text-align: center;
+    border: 2px dashed var(--line-soft); border-radius: 16px;
+    color: var(--ink-soft); font-weight: 500;
+  }
+  .footnote { margin: 28px 0 0; font-size: 0.8125rem; color: var(--ink-soft); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand-wrap">
+      <div class="logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+      </div>
+      <h1 class="brand">TaskFlow</h1>
+    </div>
+    <div class="date" id="date"></div>
+  </header>
+
+  <div class="layout">
+    <aside class="side">
+      <section class="card" aria-label="Progress summary">
+        <h2 class="headline" id="headline">Ready when you are</h2>
+        <div class="progress-row">
+          <span>Progress</span>
+          <span id="pct">0%</span>
+        </div>
+        <div class="bar" id="bar" role="progressbar" aria-label="Tasks completed" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <span id="barFill"></span>
+        </div>
+        <div class="stats">
+          <div class="stat total"><b id="statTotal">0</b><span>Total</span></div>
+          <div class="stat todo"><b id="statTodo">0</b><span>To do</span></div>
+          <div class="stat done"><b id="statDone">0</b><span>Done</span></div>
+        </div>
+      </section>
+    </aside>
+
+    <main class="main">
+      <form class="card add" id="addForm" novalidate>
+        <label class="sr-only" for="taskInput">New task</label>
+        <input id="taskInput" type="text" maxlength="120" placeholder="What do you need to do?" autocomplete="off" enterkeyhint="done">
+        <button type="submit" class="btn-add">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          Add Task
+        </button>
+        <p class="hint" id="hint" role="alert" hidden>Type a task first, then press Add Task.</p>
+      </form>
+
+      <div class="empty" id="empty" hidden>
+        <svg viewBox="0 0 120 120" aria-hidden="true">
+          <rect class="fill-surface stroke-line" x="24" y="20" width="72" height="90" rx="12" stroke-width="3"/>
+          <rect class="fill-accent stroke-line" x="44" y="10" width="32" height="18" rx="6" stroke-width="3"/>
+          <circle class="fill-lime stroke-line" cx="42" cy="54" r="7" stroke-width="3"/>
+          <path class="stroke-line" d="M58 54h24" stroke-width="3" stroke-linecap="round" fill="none"/>
+          <circle class="fill-surface stroke-line" cx="42" cy="82" r="7" stroke-width="3"/>
+          <path class="stroke-line" d="M58 82h24" stroke-width="3" stroke-linecap="round" fill="none"/>
+          <path class="fill-pink" d="M104 14l3 9 9 3-9 3-3 9-3-9-9-3 9-3z"/>
+        </svg>
+        <p>No tasks yet. Add your first task! ✨</p>
+      </div>
+
+      <div id="board">
+        <section class="group" id="pendingGroup" aria-labelledby="pendingTitle">
+          <div class="group-head">
+            <h2 id="pendingTitle">To do</h2>
+            <span class="count" id="pendingCount">0</span>
+          </div>
+          <ul class="tasks" id="pendingList"></ul>
+          <p class="note" id="pendingNote" hidden>Nothing left to do. Enjoy the free time 🎉</p>
+        </section>
+
+        <section class="group" id="doneGroup" aria-labelledby="doneTitle" hidden>
+          <div class="group-head">
+            <h2 id="doneTitle">Done</h2>
+            <span class="count done" id="doneCount">0</span>
+            <button type="button" class="btn-clear" id="clearBtn">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>
+              Clear completed
+            </button>
+          </div>
+          <ul class="tasks" id="doneList"></ul>
+        </section>
+      </div>
+
+      <p class="footnote" id="footnote"></p>
+    </main>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var KEY = 'taskflow.tasks.v1';
+  var storageOk = true;
+  var renderTimer = null;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var el = {
+    form: $('addForm'), input: $('taskInput'), hint: $('hint'),
+    empty: $('empty'),
+    pendingGroup: $('pendingGroup'), pendingList: $('pendingList'),
+    pendingCount: $('pendingCount'), pendingNote: $('pendingNote'),
+    doneGroup: $('doneGroup'), doneList: $('doneList'),
+    doneCount: $('doneCount'), clearBtn: $('clearBtn'),
+    headline: $('headline'), pct: $('pct'), bar: $('bar'), barFill: $('barFill'),
+    statTotal: $('statTotal'), statTodo: $('statTodo'), statDone: $('statDone'),
+    footnote: $('footnote'), date: $('date')
+  };
+
+  var CHECK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+  var TRASH_SVG = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>';
+
+  /* ---------- Storage ---------- */
+  function load() {
+    var raw = null;
+    try {
+      raw = window.localStorage.getItem(KEY);
+    } catch (e) {
+      storageOk = false;
+      return [];
+    }
+    if (!raw) return [];
+    try {
+      var data = JSON.parse(raw);
+      if (!Array.isArray(data)) return [];
+      return data
+        .filter(function (t) { return t && typeof t.id === 'string' && typeof t.text === 'string'; })
+        .map(function (t) { return { id: t.id, text: t.text, done: !!t.done }; });
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function save() {
+    try {
+      window.localStorage.setItem(KEY, JSON.stringify(tasks));
+      if (!storageOk) { storageOk = true; updateFootnote(); }
+    } catch (e) {
+      if (storageOk) { storageOk = false; updateFootnote(); }
+    }
+  }
+
+  var tasks = load();
+
+  function uid() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  }
+
+  function reduced() {
+    return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
+
+  /* ---------- Rendering ---------- */
+  function createTaskEl(t, fresh) {
+    var li = document.createElement('li');
+    li.className = 'task' + (t.done ? ' done' : '') + (fresh && fresh.id === t.id ? ' ' + fresh.cls : '');
+    li.dataset.id = t.id;
+
+    var label = document.createElement('label');
+    label.className = 'check';
+    var input = document.createElement('input');
+    input.type = 'checkbox';
+    input.checked = t.done;
+    input.setAttribute('aria-label', t.text);
+    var box = document.createElement('span');
+    box.className = 'box';
+    box.innerHTML = CHECK_SVG;
+    label.appendChild(input);
+    label.appendChild(box);
+
+    var text = document.createElement('span');
+    text.className = 'label';
+    text.textContent = t.text;
+
+    var del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'del';
+    del.setAttribute('aria-label', 'Delete task: ' + t.text);
+    del.innerHTML = TRASH_SVG;
+
+    li.appendChild(label);
+    li.appendChild(text);
+    li.appendChild(del);
+    return li;
+  }
+
+  function updateSummary() {
+    var total = tasks.length;
+    var done = tasks.filter(function (t) { return t.done; }).length;
+    var pending = total - done;
+    var pct = total ? Math.round((done / total) * 100) : 0;
+
+    var headline;
+    if (total === 0) headline = 'Ready when you are';
+    else if (pending === 0) headline = 'All tasks done 🎉';
+    else if (done === 0) headline = pending + (pending === 1 ? ' task to do' : ' tasks to do');
+    else headline = done + ' of ' + total + ' done';
+
+    el.headline.textContent = headline;
+    el.pct.textContent = pct + '%';
+    el.barFill.style.width = pct + '%';
+    el.bar.setAttribute('aria-valuenow', String(pct));
+    el.statTotal.textContent = total;
+    el.statTodo.textContent = pending;
+    el.statDone.textContent = done;
+  }
+
+  function updateFootnote() {
+    el.footnote.textContent = storageOk
+      ? 'Saved in this browser, so your tasks are here when you come back.'
+      : 'Saving isn\u2019t available in this browser, so your tasks will reset when you reload.';
+  }
+
+  function render(fresh) {
+    clearTimeout(renderTimer);
+    renderTimer = null;
+
+    var pending = tasks.filter(function (t) { return !t.done; });
+    var done = tasks.filter(function (t) { return t.done; });
+
+    el.pendingList.replaceChildren.apply(el.pendingList, pending.map(function (t) { return createTaskEl(t, fresh); }));
+    el.doneList.replaceChildren.apply(el.doneList, done.map(function (t) { return createTaskEl(t, fresh); }));
+
+    el.empty.hidden = tasks.length > 0;
+    el.pendingGroup.hidden = tasks.length === 0;
+    el.doneGroup.hidden = done.length === 0;
+    el.pendingNote.hidden = !(pending.length === 0 && done.length > 0);
+    el.pendingCount.textContent = pending.length;
+    el.doneCount.textContent = done.length;
+
+    updateSummary();
+  }
+
+  function scheduleRender(fresh, delay) {
+    clearTimeout(renderTimer);
+    if (!delay || reduced()) {
+      render(fresh);
+    } else {
+      renderTimer = setTimeout(function () { render(fresh); }, delay);
+    }
+  }
+
+  /* ---------- Actions ---------- */
+  function addTask(text) {
+    var task = { id: uid(), text: text, done: false };
+    tasks.unshift(task);
+    save();
+    render({ id: task.id, cls: 'enter' });
+  }
+
+  function removeTasks(ids) {
+    var set = {};
+    ids.forEach(function (id) { set[id] = true; });
+    tasks = tasks.filter(function (t) { return !set[t.id]; });
+    save();
+    updateSummary();
+    document.querySelectorAll('.task').forEach(function (li) {
+      if (set[li.dataset.id]) li.classList.add('leaving');
+    });
+    scheduleRender(null, 230);
+  }
+
+  function onToggle(e) {
+    var input = e.target;
+    if (!input.matches || !input.matches('input[type="checkbox"]')) return;
+    var li = input.closest('.task');
+    if (!li) return;
+    var task = tasks.find(function (t) { return t.id === li.dataset.id; });
+    if (!task) return;
+    task.done = input.checked;
+    save();
+    li.classList.toggle('done', task.done);
+    updateSummary();
+    scheduleRender({ id: task.id, cls: 'settle' }, 420);
+  }
+
+  function onListClick(e) {
+    var btn = e.target.closest('.del');
+    if (!btn) return;
+    var li = btn.closest('.task');
+    if (li) removeTasks([li.dataset.id]);
+  }
+
+  function showError() {
+    el.hint.hidden = false;
+    el.input.setAttribute('aria-invalid', 'true');
+    el.input.setAttribute('aria-describedby', 'hint');
+    el.form.classList.remove('shake');
+    void el.form.offsetWidth; // restart the animation
+    el.form.classList.add('shake');
+  }
+
+  function hideError() {
+    el.hint.hidden = true;
+    el.input.removeAttribute('aria-invalid');
+    el.input.removeAttribute('aria-describedby');
+  }
+
+  /* ---------- Events ---------- */
+  el.form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var text = el.input.value.replace(/\s+/g, ' ').trim();
+    if (!text) { showError(); el.input.focus(); return; }
+    hideError();
+    addTask(text);
+    el.input.value = '';
+    el.input.focus();
+  });
+
+  el.input.addEventListener('input', hideError);
+
+  [el.pendingList, el.doneList].forEach(function (list) {
+    list.addEventListener('change', onToggle);
+    list.addEventListener('click', onListClick);
+  });
+
+  el.clearBtn.addEventListener('click', function () {
+    var ids = tasks.filter(function (t) { return t.done; }).map(function (t) { return t.id; });
+    if (ids.length) removeTasks(ids);
+  });
+
+  /* ---------- Init ---------- */
+  try {
+    el.date.textContent = new Date().toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+  } catch (e) {
+    el.date.hidden = true;
+  }
+  updateFootnote();
+  render(null);
+})();
+</script>
+</body>
+</html>
